@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../data/models/user_model.dart';
+import '../../data/models/user_model.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -16,13 +16,9 @@ class AuthService {
     _firestore = FirebaseFirestore.instance;
   }
 
-  // Get current user
   User? get currentUser => _auth.currentUser;
-
-  // Get current user stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Send OTP
   Future<void> sendOTP(String phoneNumber) async {
     try {
       await _auth.verifyPhoneNumber(
@@ -34,7 +30,7 @@ class AuthService {
           throw Exception('Verification failed: ${e.message}');
         },
         codeSent: (String verificationId, int? resendToken) {
-          print('OTP sent: $verificationId');
+          print('OTP sent');
         },
         codeAutoRetrievalTimeout: (String verificationId) {
           print('Auto retrieval timeout');
@@ -45,7 +41,6 @@ class AuthService {
     }
   }
 
-  // Verify OTP
   Future<UserCredential> verifyOTP(String verificationId, String otp) async {
     try {
       PhoneAuthCredential credential = PhoneAuthProvider.credential(
@@ -58,20 +53,17 @@ class AuthService {
     }
   }
 
-  // Sign up with email
-  Future<UserCredential> signUpWithEmail(
-      String email, String password) async {
+  Future<UserCredential> signUpWithEmail(String email, String password) async {
     try {
       return await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
     } catch (e) {
-      throw Exception('Error signing up: $e');
+      throw Exception('$e');
     }
   }
 
-  // Sign in with email
   Future<UserCredential> signInWithEmail(String email, String password) async {
     try {
       return await _auth.signInWithEmailAndPassword(
@@ -79,20 +71,19 @@ class AuthService {
         password: password,
       );
     } catch (e) {
-      throw Exception('Error signing in: $e');
+      throw Exception('$e');
     }
   }
 
-  // Create user profile in Firestore
   Future<void> createUserProfile(UserModel user) async {
     try {
       await _firestore.collection('users').doc(user.uid).set(user.toMap());
+      print('User profile created: ${user.uid}');
     } catch (e) {
-      throw Exception('Error creating user profile: $e');
+      print('Error creating user profile: $e');
     }
   }
 
-  // Get user profile
   Future<UserModel?> getUserProfile(String uid) async {
     try {
       DocumentSnapshot doc =
@@ -102,11 +93,11 @@ class AuthService {
       }
       return null;
     } catch (e) {
-      throw Exception('Error getting user profile: $e');
+      print('Error getting user profile: $e');
+      return null;
     }
   }
 
-  // Update user profile
   Future<void> updateUserProfile(String uid, Map<String, dynamic> data) async {
     try {
       await _firestore.collection('users').doc(uid).update(data);
@@ -115,7 +106,6 @@ class AuthService {
     }
   }
 
-  // Sign out
   Future<void> signOut() async {
     try {
       await _auth.signOut();
@@ -124,14 +114,13 @@ class AuthService {
     }
   }
 
-  // Check if user exists
   Future<bool> userExists(String uid) async {
     try {
       DocumentSnapshot doc =
           await _firestore.collection('users').doc(uid).get();
       return doc.exists;
     } catch (e) {
-      throw Exception('Error checking user: $e');
+      return false;
     }
   }
 }

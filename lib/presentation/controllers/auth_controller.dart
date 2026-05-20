@@ -2,18 +2,15 @@ import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/services/auth_service.dart';
 import '../../data/models/user_model.dart';
-import '../../core/constants/app_strings.dart';
 
 class AuthController extends GetxController {
   final AuthService _authService = AuthService();
 
-  // Observables
   final isLoading = false.obs;
   final isLoggedIn = false.obs;
   final user = Rx<UserModel?>(null);
   final verificationId = ''.obs;
   final phoneNumber = ''.obs;
-  final errorMessage = ''.obs;
 
   @override
   void onInit() {
@@ -21,12 +18,11 @@ class AuthController extends GetxController {
     checkAuthStatus();
   }
 
-  // Check auth status
   void checkAuthStatus() {
-    _authService.authStateChanges.listen((User? currentUser) {
+    _authService.authStateChanges.listen((User? currentUser) async {
       if (currentUser != null) {
         isLoggedIn.value = true;
-        loadUserProfile(currentUser.uid);
+        await _loadUserProfile(currentUser.uid);
       } else {
         isLoggedIn.value = false;
         user.value = null;
@@ -34,61 +30,24 @@ class AuthController extends GetxController {
     });
   }
 
-  // Send OTP
-  Future<void> sendOTP(String phone) async {
+  Future<void> _loadUserProfile(String uid) async {
     try {
-      isLoading.value = true;
-      errorMessage.value = '';
-      phoneNumber.value = phone;
-      await _authService.sendOTP(phone);
+      final userProfile = await _authService.getUserProfile(uid);
+      user.value = userProfile;
     } catch (e) {
-      errorMessage.value = e.toString();
-      Get.snackbar('Error', errorMessage.value,
-          snackPosition: SnackPosition.BOTTOM);
-    } finally {
-      isLoading.value = false;
+      print('Profile load error: $e');
     }
   }
 
-  // Verify OTP
-  Future<void> verifyOTP(String otp) async {
-    try {
-      isLoading.value = true;
-      errorMessage.value = '';
-      
-      final credential = await _authService.verifyOTP(verificationId.value, otp);
-      
-      // Check if user exists
-      bool exists = await _authService.userExists(credential.user!.uid);
-      
-      if (exists) {
-        await loadUserProfile(credential.user!.uid);
-        Get.offNamed('/home');
-      } else {
-        // New user - go to profile creation
-        Get.offNamed('/profile-setup',
-            arguments: {'uid': credential.user!.uid, 'phone': phoneNumber.value});
-      }
-    } catch (e) {
-      errorMessage.value = e.toString();
-      Get.snackbar('Error', 'Invalid OTP. Please try again.',
-          snackPosition: SnackPosition.BOTTOM);
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  // Sign up with email
   Future<void> signUpWithEmail(
       String email, String password, String firstName, String lastName) async {
     try {
       isLoading.value = true;
-      errorMessage.value = '';
 
-      final credential = await _authService.signUpWithEmail(email, password);
-      
+      final cred = await _authService.signUpWithEmail(email, password);
+
       final newUser = UserModel(
-        uid: credential.user!.uid,
+        uid: cred.user!.uid,
         phoneNumber: '',
         firstName: firstName,
         lastName: lastName,
@@ -99,77 +58,89 @@ class AuthController extends GetxController {
 
       await _authService.createUserProfile(newUser);
       user.value = newUser;
-      
-      Get.snackbar('Success', AppStrings.success,
-          snackPosition: SnackPosition.BOTTOM);
+      isLoggedIn.value = true;
+
+      Get.snackbar('Success', 'Account created!');
       Get.offNamed('/home');
     } catch (e) {
-      errorMessage.value = e.toString();
-      Get.snackbar('Error', errorMessage.value,
-          snackPosition: SnackPosition.BOTTOM);
+      print('SignUp error: $e');
+      Get.snackbar('Error', 'Sign up failed: ${e.toString().substring(0, 50)}');
     } finally {
       isLoading.value = false;
     }
   }
 
-  // Sign in with email
   Future<void> signInWithEmail(String email, String password) async {
     try {
       isLoading.value = true;
-      errorMessage.value = '';
 
       await _authService.signInWithEmail(email, password);
-      await loadUserProfile(_authService.currentUser!.uid);
-      
-      Get.offNamed('/home');
+
+      final currentUser = _authService.currentUser;
+      if (currentUser != null) {
+        isLoggedIn.value = true;
+        await _loadUserProfile(currentUser.uid);
+        Get.offNamed('/home');
+      }
     } catch (e) {
-      errorMessage.value = e.toString();
-      Get.snackbar('Error', errorMessage.value,
-          snackPosition: SnackPosition.BOTTOM);
+      print('SignIn error: $e');
+      Get.snackbar('Error', 'Login failed');
     } finally {
       isLoading.value = false;
     }
   }
 
-  // Load user profile
-  Future<void> loadUserProfile(String uid) async {
+  Future<void> sendOTP(String phone) async {
     try {
-      final userProfile = await _authService.getUserProfile(uid);
-      user.value = userProfile;
+      isLoading.value = true;
+      phoneNumber.value = phone;
+      await _authService.sendOTP(phone);
     } catch (e) {
-      print('Error loading profile: $e');
+      Get.snackbar('Error', 'OTP send failed');
+    } finally {
+      isLoading.value = false;
     }
   }
 
-  // Update profile
+  Future<void> verifyOTP(String otp) async {
+    try {
+      isLoading.value = true;
+      await _authService.verifyOTP(verificationId.value, otp);
+      final currentUser = _authService.currentUser;
+      if (currentUser != null) {
+        isLoggedIn.value = true;
+        await _loadUserProfile(currentUser.uid);
+        Get.offNamed('/home');
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'OTP verification failed');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   Future<void> updateProfile(UserModel updatedUser) async {
     try {
       isLoading.value = true;
       await _authService.updateUserProfile(
           updatedUser.uid, updatedUser.toMap());
       user.value = updatedUser;
-      Get.snackbar('Success', 'Profile updated',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Success', 'Profile updated');
     } catch (e) {
-      Get.snackbar('Error', e.toString(),
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('Error', 'Update failed');
     } finally {
       isLoading.value = false;
     }
   }
 
-  // Sign out
   Future<void> signOut() async {
     try {
-      isLoading.value = true;
       await _authService.signOut();
       user.value = null;
+      isLoggedIn.value = false;
       Get.offNamed('/login');
     } catch (e) {
-      Get.snackbar('Error', e.toString(),
-          snackPosition: SnackPosition.BOTTOM);
-    } finally {
-      isLoading.value = false;
+      Get.snackbar('Error', 'Logout failed');
     }
   }
 }
