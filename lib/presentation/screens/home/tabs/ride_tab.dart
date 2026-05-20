@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../presentation/controllers/auth_controller.dart';
+import '../../../../presentation/controllers/maps_controller.dart';
+import '../../../../presentation/controllers/request_ride_controller.dart';
+import '../../../screens/maps/request_ride_screen.dart';
 
 class RideTab extends StatelessWidget {
   const RideTab({Key? key}) : super(key: key);
@@ -66,11 +69,9 @@ class RideTab extends StatelessWidget {
                   label: 'Book Now',
                   color: Color(0xFF00D4FF),
                   onTap: () {
-                    Get.snackbar(
-                      'Coming Soon',
-                      'Ride booking feature',
-                      snackPosition: SnackPosition.BOTTOM,
-                    );
+                    Get.put(MapsController());
+                    Get.put(RequestRideController());
+                    Get.to(() => RequestRideScreen());
                   },
                 ),
                 _buildQuickActionCard(
