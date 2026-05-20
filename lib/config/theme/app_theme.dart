@@ -7,11 +7,16 @@ class AppTheme {
   static const Color background = Color(0xFFFAFAFA);
   static const Color success = Color(0xFF51CF66);
   static const Color error = Color(0xFFFF6B6B);
-  
+
   // Ghana Colors
   static const Color ghanaGold = Color(0xFFCEA946);
   static const Color ghanaGreen = Color(0xFF007A5E);
   static const Color ghanaRed = Color(0xFFCE1126);
+
+  static const Color primaryColor = Color(0xFF000000);
+  static const Color accentColor = Color(0xFFFFC107);
+  static const Color backgroundColor = Color(0xFFFFFFFF);
+  static const Color textColor = Color(0xFF212121);
 
   static ThemeData get lightTheme {
     return ThemeData(
